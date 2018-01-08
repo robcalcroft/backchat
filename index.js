@@ -3,11 +3,12 @@ const proxy = require('http-proxy');
 const zlib = require('zlib');
 const url = require('url');
 const fs = require('fs');
+const args = require('minimist');
 
-const port = process.env.PORT || 10001;
-const chatLocation = process.env.CHAT_LOCATION || 'chats/';
-const disableRecording = !!process.env.DISABLE_RECORDING;
-const proxyUrl = process.env.PROXY_URL;
+const port = args.port || args.p || 10001;
+const chatLocation = args.chat_location || args.c || 'chats/';
+const disableRecording = args.disable_recording || args.d || false;
+const proxyUrl = args.proxy_url || args.u;
 const isBackchatHeaderName = 'x-from-backchat-cache';
 
 if (!proxyUrl) {
@@ -16,10 +17,10 @@ if (!proxyUrl) {
 
 const proxyServer = proxy.createProxyServer({});
 
-const getFileNameFromUrl = url => `${Buffer.from(url).toString('base64')}.json`;
+const getFileNameFromUrl = urlForFileName => `${Buffer.from(urlForFileName).toString('base64')}.json`;
 
 const saveRequest = (response) => {
-  let rawBody = [];
+  const rawBody = [];
   const isGzipped = response.headers['content-encoding'] === 'gzip';
 
   response.on('data', data => rawBody.push(data));
@@ -31,13 +32,12 @@ const saveRequest = (response) => {
     } else {
       body = Buffer.concat(rawBody).toString();
     }
-    debugger;
 
-    fs.writeFile(`${chatLocation}${getFileNameFromUrl(response.socket._httpMessage.path)}`, JSON.stringify({
+    fs.writeFile(`${chatLocation}${getFileNameFromUrl(response.socket._httpMessage.path)}`, JSON.stringify({ // eslint-disable-line no-underscore-dangle
       recorded: Math.round(Date.now() / 1000),
       headers: response.headers,
       body,
-    }),(error) => {
+    }), (error) => {
       if (error) {
         throw new Error(error.message);
       }
@@ -50,7 +50,7 @@ proxyServer.on('proxyReq', (proxyRequest) => {
   proxyRequest.setHeader('Host', url.parse(proxyUrl).hostname);
 });
 
-proxyServer.on('proxyRes', (proxyResponse, request, response) => {
+proxyServer.on('proxyRes', (proxyResponse) => {
   if (!disableRecording) {
     saveRequest(proxyResponse);
   }
@@ -64,13 +64,14 @@ http.createServer((request, response) => {
       return proxyServer.web(request, response, { target: proxyUrl });
     }
     const chat = JSON.parse(data);
-    
+
     delete chat.headers['content-encoding'];
 
     response.writeHead(200, {
       ...chat.headers,
       [isBackchatHeaderName]: 'yes',
     });
-    response.end(chat.body);
+
+    return response.end(chat.body);
   });
 }).listen(port, () => console.log(`Backchat server running on port ${port}`));

@@ -7,9 +7,16 @@
     "backchat": "index.js"
   },
   "dependencies": {
-    "http-proxy": "^1.16.2"
+    "http-proxy": "^1.16.2",
+    "minimist": "^1.2.0"
   },
   "scripts": {
     "start": "node index.js"
+  },
+  "devDependencies": {
+    "eslint": "^4.15.0",
+    "eslint-config-airbnb": "^16.1.0",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-import": "^2.8.0"
   }
 }

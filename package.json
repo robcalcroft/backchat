@@ -1,6 +1,6 @@
 {
-  "name": "backchat",
-  "version": "1.0.0",
+  "name": "backchat-proxy",
+  "version": "1.0.1",
   "main": "index.js",
   "license": "MIT",
   "bin": {

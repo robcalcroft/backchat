@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const http = require('http');
 const proxy = require('http-proxy');
 const zlib = require('zlib');

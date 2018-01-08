@@ -1,6 +1,6 @@
 # :ear: backchat
 
-Backchat is a small Node.js utility for recording HTTP traffic and replaying it when the same request is made in the future.
+Backchat is a small Node.js proxy utility for recording HTTP traffic and replaying it when the same request is made in the future.
 
 ## Usage
 1. Install the utlity with `yarn add backchat-proxy`

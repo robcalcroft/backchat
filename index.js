@@ -6,6 +6,7 @@ const zlib = require('zlib');
 const url = require('url');
 const fs = require('fs');
 const minimist = require('minimist');
+const querystring = require('querystring');
 
 const args = minimist(process.argv);
 const port = args.port || args.p || 10001;
@@ -30,7 +31,9 @@ const getFileNameFromUrl = urlForFileName => `${Buffer.from(urlForFileName).toSt
 
 const saveRequest = (response) => {
   const rawBody = [];
-  const isGzipped = response.headers['content-encoding'] === 'gzip';
+  const contentEncodingHeader = response.headers['content-encoding'];
+  const path = response.socket._httpMessage.path.split('?')[0];
+  const isGzipped = !!contentEncodingHeader && contentEncodingHeader.includes('gzip');
 
   response.on('data', data => rawBody.push(data));
 
@@ -42,7 +45,7 @@ const saveRequest = (response) => {
       body = Buffer.concat(rawBody).toString();
     }
 
-    fs.writeFile(`${chatLocation}${getFileNameFromUrl(response.socket._httpMessage.path)}`, JSON.stringify({ // eslint-disable-line no-underscore-dangle
+    fs.writeFile(`${chatLocation}${getFileNameFromUrl(path)}`, JSON.stringify({
       recorded: Math.round(Date.now() / 1000),
       headers: response.headers,
       body,
@@ -50,7 +53,7 @@ const saveRequest = (response) => {
       if (error) {
         throw new Error(error.message);
       }
-      log(`Wrote ${getFileNameFromUrl(response.socket._httpMessage.path)} for URL ${response.socket._httpMessage.path}`); // eslint-disable-line no-underscore-dangle
+      log(`Wrote ${getFileNameFromUrl(path)} for URL ${path}`);
     });
   });
 };
@@ -64,25 +67,31 @@ proxyServer.on('proxyRes', (proxyResponse) => {
   if (!disableRecording) {
     return saveRequest(proxyResponse);
   }
-  return log(`URL ${proxyResponse.socket._httpMessage.path} not being cached as recording is disabled`); // eslint-disable-line no-underscore-dangle
+  return log(`URL ${proxyResponse.socket._httpMessage.path} not being cached as recording is disabled`);
 });
 
 http.createServer((request, response) => {
-  fs.readFile(`${chatLocation}${getFileNameFromUrl(request.url)}`, (error, data) => {
-    if (error) {
-      log(`URL ${request.url} not found in cache, proxying to ${proxyUrl}`);
+  const parsedUrl = url.parse(request.url);
+  fs.readFile(`${chatLocation}${getFileNameFromUrl(parsedUrl.pathname)}`, (error, data) => {
+    const query = querystring.parse(parsedUrl.query);
+    if (error || query.__backchat_override) {
+      if (query.__backchat_override) {
+        log(`URL ${parsedUrl.pathname} being overridden to use proxy`);
+      } else {
+        log(`URL ${parsedUrl.pathname} not found in cache, proxying to ${proxyUrl}`);
+      }
       response.setHeader(isBackchatHeaderName, 'no');
-      const parsedUrl = url.parse(proxyUrl);
+      const parsedProxyUrl = url.parse(proxyUrl);
       return proxyServer.web(request, response, {
         target: {
-          host: parsedUrl.host,
-          port: parsedUrl.port,
-          https: parsedUrl.protocol === 'https:',
+          host: parsedProxyUrl.host,
+          port: parsedProxyUrl.port,
+          https: parsedProxyUrl.protocol === 'https:',
         },
       });
     }
 
-    log(`URL ${request.url} found in cache returning contents`);
+    log(`URL ${parsedUrl.pathname} found in cache returning contents`);
 
     const chat = JSON.parse(data);
 

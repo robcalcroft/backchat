@@ -1,0 +1,15 @@
+{
+  "name": "backchat",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "bin": {
+    "backchat": "index.js"
+  },
+  "dependencies": {
+    "http-proxy": "^1.16.2"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}

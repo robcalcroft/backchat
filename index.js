@@ -5,8 +5,9 @@ const proxy = require('http-proxy');
 const zlib = require('zlib');
 const url = require('url');
 const fs = require('fs');
-const args = require('minimist');
+const minimist = require('minimist');
 
+const args = minimist(process.argv);
 const port = args.port || args.p || 10001;
 const chatLocation = args['chat-location'] || args.c || 'chats/';
 const disableRecording = args['disable-recording'] || args.d || false;
@@ -17,7 +18,13 @@ if (!proxyUrl) {
   throw new Error('A --proxy-url argument must be given');
 }
 
+if (!chatLocation.includes('/')) {
+  throw new Error('--chat-location must contain a /, either at the end or in the middle i.e. other-chats/ or chats/main');
+}
+
 const proxyServer = proxy.createProxyServer({});
+
+const log = message => console.log(`[${new Date().toISOString()}] - ${message}`);
 
 const getFileNameFromUrl = urlForFileName => `${Buffer.from(urlForFileName).toString('base64')}.json`;
 
@@ -43,6 +50,7 @@ const saveRequest = (response) => {
       if (error) {
         throw new Error(error.message);
       }
+      log(`Wrote ${getFileNameFromUrl(response.socket._httpMessage.path)} for URL ${response.socket._httpMessage.path}`); // eslint-disable-line no-underscore-dangle
     });
   });
 };
@@ -54,17 +62,28 @@ proxyServer.on('proxyReq', (proxyRequest) => {
 
 proxyServer.on('proxyRes', (proxyResponse) => {
   if (!disableRecording) {
-    saveRequest(proxyResponse);
+    return saveRequest(proxyResponse);
   }
+  return log(`URL ${proxyResponse.socket._httpMessage.path} not being cached as recording is disabled`); // eslint-disable-line no-underscore-dangle
 });
 
 http.createServer((request, response) => {
   fs.readFile(`${chatLocation}${getFileNameFromUrl(request.url)}`, (error, data) => {
     if (error) {
-      // When a file isn't available in the cache we request it and add to the cache
+      log(`URL ${request.url} not found in cache, proxying to ${proxyUrl}`);
       response.setHeader(isBackchatHeaderName, 'no');
-      return proxyServer.web(request, response, { target: proxyUrl });
+      const parsedUrl = url.parse(proxyUrl);
+      return proxyServer.web(request, response, {
+        target: {
+          host: parsedUrl.host,
+          port: parsedUrl.port,
+          https: parsedUrl.protocol === 'https:',
+        },
+      });
     }
+
+    log(`URL ${request.url} found in cache returning contents`);
+
     const chat = JSON.parse(data);
 
     delete chat.headers['content-encoding'];
@@ -76,4 +95,4 @@ http.createServer((request, response) => {
 
     return response.end(chat.body);
   });
-}).listen(port, () => console.log(`Backchat server running on port ${port}`));
+}).listen(port, () => log(`Backchat server for ${proxyUrl} running on port ${port}`));

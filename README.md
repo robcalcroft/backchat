@@ -4,7 +4,8 @@ Backchat is a small Node.js utility for recording HTTP traffic and replaying it 
 
 ## Usage
 1. Install the utlity with `yarn add backchat-proxy`
-2. Run the utility from your Node.js modules `node_modules/.bin/backchat`, or `backchat` on its own inside `package.json` scripts (see below for arguments)
+2. Ensure the folder you are using to store the chats is created, by default it is `chats`
+3. Run the utility from your Node.js modules `node_modules/.bin/backchat`, or `backchat` on its own inside `package.json` scripts (see below for arguments)
 
 | Name                        | Description                                                 | Required | Default  |
 |-----------------------------|-------------------------------------------------------------|----------|----------|

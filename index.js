@@ -6,13 +6,13 @@ const fs = require('fs');
 const args = require('minimist');
 
 const port = args.port || args.p || 10001;
-const chatLocation = args.chat_location || args.c || 'chats/';
-const disableRecording = args.disable_recording || args.d || false;
-const proxyUrl = args.proxy_url || args.u;
+const chatLocation = args['chat-location'] || args.c || 'chats/';
+const disableRecording = args['disable-recording'] || args.d || false;
+const proxyUrl = args['proxy-url'] || args.u;
 const isBackchatHeaderName = 'x-from-backchat-cache';
 
 if (!proxyUrl) {
-  throw new Error('A PROXY_URL environment variable must be present');
+  throw new Error('A --proxy-url argument must be given');
 }
 
 const proxyServer = proxy.createProxyServer({});

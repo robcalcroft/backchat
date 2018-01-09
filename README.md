@@ -14,4 +14,4 @@ Backchat is a small Node.js proxy utility for recording HTTP traffic and replayi
 | `-d`, `--disable-recording` | Disable the recording feature and just use the proxy        | no       | `false`  |
 | `-u`, `--proxy-url`         | The URL to proxy all traffic that goes through the proxy to | yes      | n/a      |
 
-**To force a request to override the cached version, simply add `__backchat_override=1` to the URL's query string**
+**To force a request to override the cached version, simply add a `x-backchat-override-record` header to the request**

@@ -29,10 +29,10 @@ const log = message => console.log(`[${new Date().toISOString()}] - ${message}`)
 
 const getFileNameFromUrl = urlForFileName => `${Buffer.from(urlForFileName).toString('base64')}.json`;
 
-const saveRequest = (response) => {
+const saveResponse = (response) => {
   const rawBody = [];
   const contentEncodingHeader = response.headers['content-encoding'];
-  const path = response.socket._httpMessage.path.split('?')[0];
+  const path = response.socket._httpMessage.path;
   const isGzipped = !!contentEncodingHeader && contentEncodingHeader.includes('gzip');
 
   response.on('data', data => rawBody.push(data));
@@ -63,22 +63,20 @@ proxyServer.on('proxyReq', (proxyRequest) => {
   proxyRequest.setHeader('Host', url.parse(proxyUrl).hostname);
 });
 
-proxyServer.on('proxyRes', (proxyResponse) => {
+proxyServer.on('proxyRes', (proxyResponse, request) => {
   if (!disableRecording) {
-    return saveRequest(proxyResponse);
+    return saveResponse(proxyResponse);
   }
   return log(`URL ${proxyResponse.socket._httpMessage.path} not being cached as recording is disabled`);
 });
 
 http.createServer((request, response) => {
-  const parsedUrl = url.parse(request.url);
-  fs.readFile(`${chatLocation}${getFileNameFromUrl(parsedUrl.pathname)}`, (error, data) => {
-    const query = querystring.parse(parsedUrl.query);
-    if (error || query.__backchat_override) {
-      if (query.__backchat_override) {
-        log(`URL ${parsedUrl.pathname} being overridden to use proxy`);
+  fs.readFile(`${chatLocation}${getFileNameFromUrl(request.url)}`, (error, data) => {
+    if (error || !!request.headers['x-backchat-override-record']) {
+      if (!!request.headers['x-backchat-override-record']) {
+        log(`URL ${request.url} being overridden to use proxy`);
       } else {
-        log(`URL ${parsedUrl.pathname} not found in cache, proxying to ${proxyUrl}`);
+        log(`URL ${request.url} not found in cache, proxying to ${proxyUrl}`);
       }
       response.setHeader(isBackchatHeaderName, 'no');
       const parsedProxyUrl = url.parse(proxyUrl);
@@ -91,7 +89,7 @@ http.createServer((request, response) => {
       });
     }
 
-    log(`URL ${parsedUrl.pathname} found in cache returning contents`);
+    log(`URL ${request.url} found in cache returning contents`);
 
     const chat = JSON.parse(data);
 

@@ -6,7 +6,6 @@ const zlib = require('zlib');
 const url = require('url');
 const fs = require('fs');
 const minimist = require('minimist');
-const querystring = require('querystring');
 
 const args = minimist(process.argv);
 const port = args.port || args.p || 10001;
@@ -32,7 +31,7 @@ const getFileNameFromUrl = urlForFileName => `${Buffer.from(urlForFileName).toSt
 const saveResponse = (response) => {
   const rawBody = [];
   const contentEncodingHeader = response.headers['content-encoding'];
-  const path = response.socket._httpMessage.path;
+  const { path } = response.socket._httpMessage;
   const isGzipped = !!contentEncodingHeader && contentEncodingHeader.includes('gzip');
 
   response.on('data', data => rawBody.push(data));
@@ -63,7 +62,7 @@ proxyServer.on('proxyReq', (proxyRequest) => {
   proxyRequest.setHeader('Host', url.parse(proxyUrl).hostname);
 });
 
-proxyServer.on('proxyRes', (proxyResponse, request) => {
+proxyServer.on('proxyRes', (proxyResponse) => {
   if (!disableRecording) {
     return saveResponse(proxyResponse);
   }
@@ -72,8 +71,8 @@ proxyServer.on('proxyRes', (proxyResponse, request) => {
 
 http.createServer((request, response) => {
   fs.readFile(`${chatLocation}${getFileNameFromUrl(request.url)}`, (error, data) => {
-    if (error || !!request.headers['x-backchat-override-record']) {
-      if (!!request.headers['x-backchat-override-record']) {
+    if (error || request.headers['x-backchat-override-record']) {
+      if (request.headers['x-backchat-override-record']) {
         log(`URL ${request.url} being overridden to use proxy`);
       } else {
         log(`URL ${request.url} not found in cache, proxying to ${proxyUrl}`);
